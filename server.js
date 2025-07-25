@@ -4,10 +4,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); // ✔ Esta es la instancia correcta
+
 const io = new Server(server, {
   cors: {
-    origin: "https://www.pulsadorauxiliorapidopnp.com.pe/walkipolicial/", // Cambia esto a tu dominio en producción
+    origin: "https://www.pulsadorauxiliorapidopnp.com.pe", // ✔ sin ruta específica
     methods: ["GET", "POST"]
   }
 });
@@ -25,7 +26,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Servidor WebSocket activo en puerto ${PORT}`);
 });
+
 
