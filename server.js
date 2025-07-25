@@ -24,7 +24,8 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3000, () => {
-  console.log('Servidor WebSocket activo en puerto 3000');
+const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, () => {
+  console.log(`Servidor WebSocket activo en puerto ${PORT}`);
 });
 
