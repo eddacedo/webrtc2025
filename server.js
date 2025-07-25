@@ -4,17 +4,17 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-const server = http.createServer(app); // ✔ Esta es la instancia correcta
+const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "https://www.pulsadorauxiliorapidopnp.com.pe", // ✔ sin ruta específica
+    origin: "https://www.pulsadorauxiliorapidopnp.com.pe", // Durante pruebas puedes permitir todos los orígenes
     methods: ["GET", "POST"]
   }
 });
 
 io.on('connection', (socket) => {
-  console.log('Nuevo cliente conectado');
+  console.log('Cliente conectado');
 
   socket.on('audio', (data) => {
     socket.broadcast.emit('audio', data);
@@ -27,7 +27,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor WebSocket activo en puerto ${PORT}`);
+  console.log(`Servidor activo en puerto ${PORT}`);
 });
 
 
