@@ -1,103 +1,30 @@
-import express from 'express';
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Configuración de rutas para producción
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// server.js
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
-const port = process.env.PORT || 3000;
-
-// Servir cliente web desde directorio público
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Redirigir todas las rutas a index.html para SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Almacenamiento eficiente de conexiones
-const rooms = new Map();
-const userStates = new Map();
-
-wss.on('connection', (ws) => {
-  ws.id = uuidv4();
-  ws.roomId = 'comisaria-central';
-
-  // Registro en sala
-  if (!rooms.has(ws.roomId)) {
-    rooms.set(ws.roomId, new Set());
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "https://www.pulsadorauxiliorapidopnp.com.pe/walkipolicial/", // Cambia esto a tu dominio en producción
+    methods: ["GET", "POST"]
   }
-  rooms.get(ws.roomId).add(ws);
-  
-  // Notificar nueva conexión
-  broadcastSystemMessage(`${ws.id.substring(0, 5)} conectado`, ws.roomId);
-  
-  ws.on('message', (data) => {
-    try {
-      const message = JSON.parse(data);
-      
-      // Manejo de audio
-      if (message.type === 'audio' && userStates.get(ws.id) === 'transmitting') {
-        broadcastAudio(ws.id, message.audio, ws.roomId);
-      }
-      
-      // Control PTT
-      if (message.type === 'ptt-state') {
-        userStates.set(ws.id, message.state);
-        if (message.state === 'transmitting') {
-          broadcastSystemMessage(`${ws.id.substring(0, 5)} transmitiendo`, ws.roomId);
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error procesando mensaje:', error);
-    }
+});
+
+io.on('connection', (socket) => {
+  console.log('Nuevo cliente conectado');
+
+  socket.on('audio', (data) => {
+    socket.broadcast.emit('audio', data);
   });
 
-  ws.on('close', () => {
-    rooms.get(ws.roomId)?.delete(ws);
-    userStates.delete(ws.id);
-    broadcastSystemMessage(`${ws.id.substring(0, 5)} desconectado`, ws.roomId);
+  socket.on('disconnect', () => {
+    console.log('Cliente desconectado');
   });
 });
 
-function broadcastSystemMessage(text, roomId) {
-  const message = JSON.stringify({
-    type: 'system',
-    text: text,
-    timestamp: Date.now()
-  });
-  
-  rooms.get(roomId)?.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-}
-
-function broadcastAudio(userId, audioData, roomId) {
-  const message = JSON.stringify({
-    type: 'audio',
-    userId: userId,
-    audio: audioData,
-    timestamp: Date.now()
-  });
-  
-  rooms.get(roomId)?.forEach(client => {
-    if (client.readyState === WebSocket.OPEN && client.id !== userId) {
-      client.send(message);
-    }
-  });
-}
-
-server.listen(port, () => {
-  console.log(`Servidor activo en puerto ${port}`);
-  console.log(`Cliente disponible en: https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'localhost:' + port}`);
+server.listen(3000, () => {
+  console.log('Servidor WebSocket activo en puerto 3000');
 });
+
