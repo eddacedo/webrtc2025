@@ -1,62 +1,51 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+const cors = require('cors');
+const { AccessToken, RoomServiceClient } = require('@livekit/server-sdk');
 
 const app = express();
-const server = http.createServer(app);
+app.use(cors());
+app.use(express.json());
 
-const io = new Server(server, {
-  cors: { origin: "*" } // Simplificado para pruebas, restringir en producción
+const PORT = process.env.PORT || 3000;
+const LIVEKIT_URL = process.env.walki-3icqhz3t.livekit.cloud; // ejemplo: 'https://your.livekit.instance'
+const API_KEY = process.env.APIHpK7LNhRszcL;
+const API_SECRET = process.env.VLEYlX8rWQ8m3WS4SPOkLaobbp6fVlbReB8fzf5g0vfG;
+
+// Seguridad mínima: verifica una API_KEY_APP propia si quieres.
+const ADMIN_SECRET = process.env.ADMIN_SECRET || ''; // opcional, para proteger endpoint
+
+if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
+  console.error('Faltan variables de entorno LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET');
+  process.exit(1);
+}
+
+// Endpoint para generar token (para un nombre de usuario y room)
+app.post('/token', (req, res) => {
+  // opcional: comprueba ADMIN_SECRET en header para que no cualquiera pida tokens
+  if (ADMIN_SECRET) {
+    const h = req.headers['x-admin-secret'] || '';
+    if (h !== ADMIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  const { identity, room } = req.body || {};
+  if (!identity || !room) return res.status(400).json({ error: 'identity and room required' });
+
+  // Crea token LiveKit
+  const at = new AccessToken(API_KEY, API_SECRET, {
+    identity: identity,
+  });
+  // permisos: join + publish
+  at.addGrant({ roomJoin: true });
+  at.addGrant({ room: room });
+
+  const token = at.toJwt();
+  res.json({ token, url: LIVEKIT_URL });
 });
 
-let emisorSocketId = null;
+app.get('/', (req, res) => res.send('LiveKit token server'));
 
-io.on('connection', (socket) => {
-  console.log(`✅ Cliente conectado: ${socket.id}`);
-
-  socket.on('register-emisor', () => {
-    console.log(`🎙️ Emisor registrado: ${socket.id}`);
-    emisorSocketId = socket.id;
-    socket.broadcast.emit('emisor-congelado');
-    console.log('Notificando a receptores sobre nuevo emisor');
-  });
-
-  socket.on('register-receptor', () => {
-    console.log(`🎧 Receptor registrado: ${socket.id}`);
-    if (emisorSocketId) {
-      console.log(`Notificando al emisor ${emisorSocketId} sobre nuevo receptor ${socket.id}`);
-      io.to(emisorSocketId).emit('new-receptor', socket.id);
-    } else {
-      console.log('No hay emisor conectado para el receptor', socket.id);
-    }
-  });
-
-  socket.on('offer', (payload) => {
-    console.log(`📤 Oferta recibida de ${socket.id} para ${payload.target}:`, JSON.stringify(payload.offer, null, 2));
-    io.to(payload.target).emit('offer', payload);
-  });
-
-  socket.on('answer', (payload) => {
-    console.log(`📥 Respuesta recibida de ${socket.id} para ${payload.target}:`, JSON.stringify(payload.answer, null, 2));
-    io.to(payload.target).emit('answer', payload);
-  });
-
-  socket.on('ice-candidate', (payload) => {
-    console.log(`❄️ Candidato ICE recibido de ${socket.id} para ${payload.target}:`, JSON.stringify(payload.candidate, null, 2));
-    io.to(payload.target).emit('ice-candidate', payload);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`❌ Cliente desconectado: ${socket.id}`);
-    if (socket.id === emisorSocketId) {
-      emisorSocketId = null;
-      console.log('El emisor se ha desconectado. Notificando a receptores.');
-      socket.broadcast.emit('emisor-congelado');
-    }
-  });
-});
-
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor de señalización WebRTC activo en puerto ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Token server on port ${PORT}`);
 });
