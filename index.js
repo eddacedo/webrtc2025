@@ -8,9 +8,9 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const LIVEKIT_URL = process.env.walki-3icqhz3t.livekit.cloud; // ejemplo: 'https://your.livekit.instance'
-const API_KEY = process.env.APIHpK7LNhRszcL;
-const API_SECRET = process.env.VLEYlX8rWQ8m3WS4SPOkLaobbp6fVlbReB8fzf5g0vfG;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const API_KEY      = process.env.LIVEKIT_API_KEY;
+const API_SECRET   = process.env.LIVEKIT_API_SECRET;
 
 // Seguridad mínima: verifica una API_KEY_APP propia si quieres.
 const ADMIN_SECRET = process.env.ADMIN_SECRET || ''; // opcional, para proteger endpoint
